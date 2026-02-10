@@ -8,7 +8,7 @@
 	const navItems = [
 		{ href: '/', label: 'Home', icon: '\u25C9' },
 		{ href: '/import', label: 'Import', icon: '\u2191' },
-		{ href: '/search', label: 'Search', icon: '\u2315' },
+		{ href: '/search', label: 'Search', icon: '⌗' },
 		{ href: '/explore', label: 'Explore', icon: '\u25CE' },
 		{ href: '/reports', label: 'Reports', icon: '\u2756' }
 	];

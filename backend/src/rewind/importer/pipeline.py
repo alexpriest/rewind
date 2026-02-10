@@ -8,7 +8,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from rewind.config import settings
-from rewind.importer.parser import parse_journal_json
+from rewind.importer.parser import parse_all_journals
+from rewind.importer.thumbnails import process_photos
 from rewind.models import ImportStatus
 
 _import_statuses: dict[str, ImportStatus] = {}
@@ -43,15 +44,23 @@ class ImportPipeline:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 zf.extractall(tmp_dir)
 
-            journal_path = self._find_journal_json(tmp_dir)
-            if not journal_path:
+            journal_paths = list(tmp_dir.rglob("Journal.json"))
+            if not journal_paths:
                 self._update("error", 0, "No Journal.json found in zip")
                 return self.status
 
-            self._update("parsing", 25, "Parsing journal data...")
-            entries = parse_journal_json(journal_path)
+            self._update(
+                "parsing", 20,
+                f"Found {len(journal_paths)} journal(s), parsing..."
+            )
+            entries = parse_all_journals(journal_paths)
 
-            self._update("importing", 40, f"Importing {len(entries)} entries...")
+            self._update("importing", 35, f"Processing photos for {len(entries)} entries...")
+            photo_file_count = process_photos(
+                tmp_dir, entries, settings.PHOTOS_DIR, settings.THUMBNAILS_DIR
+            )
+
+            self._update("importing", 55, f"Importing {len(entries)} entries...")
             conn = sqlite3.connect(str(self.db_path))
             conn.execute("PRAGMA journal_mode=wal")
             conn.execute("PRAGMA foreign_keys=ON")
@@ -62,10 +71,10 @@ class ImportPipeline:
                 self._clear_data(conn)
                 self._restore_confirmed_tags(conn, confirmed_tags)
 
-                self._update("importing", 50, "Inserting entries...")
+                self._update("importing", 65, "Inserting entries...")
                 self._insert_entries(conn, entries)
 
-                self._update("importing", 70, "Inserting tags...")
+                self._update("importing", 75, "Inserting tags...")
                 tag_count = self._insert_tags_and_links(conn, entries)
 
                 self._update("importing", 85, "Inserting photos...")
@@ -89,7 +98,7 @@ class ImportPipeline:
                 self._update(
                     "done",
                     100,
-                    f"Imported {len(entries)} entries, {tag_count} tags, {photo_count} photos in {duration:.1f}s",
+                    f"Imported {len(entries)} entries, {tag_count} tags, {photo_count} photos ({photo_file_count} with files) in {duration:.1f}s",
                     entry_count=len(entries),
                     tag_count=tag_count,
                     photo_count=photo_count,
@@ -104,11 +113,6 @@ class ImportPipeline:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
         return self.status
-
-    def _find_journal_json(self, root: Path) -> Path | None:
-        for p in root.rglob("Journal.json"):
-            return p
-        return None
 
     def _get_confirmed_tags(self, conn: sqlite3.Connection) -> list[dict]:
         rows = conn.execute(
@@ -227,14 +231,15 @@ class ImportPipeline:
                         p.get("file_type"),
                         p.get("width"),
                         p.get("height"),
+                        1 if p.get("has_thumbnail") else 0,
                     )
                 )
                 photo_count += 1
 
         conn.executemany(
             """INSERT OR IGNORE INTO photos
-               (entry_uuid, identifier, md5, file_type, width, height)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               (entry_uuid, identifier, md5, file_type, width, height, has_thumbnail)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         conn.commit()

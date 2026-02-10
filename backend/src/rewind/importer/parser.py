@@ -8,46 +8,55 @@ def parse_journal_json(path: Path) -> list[dict]:
         data = json.load(f)
 
     raw_entries = data.get("entries", [])
-    parsed = []
+    return [_parse_entry(raw) for raw in raw_entries]
 
-    for raw in raw_entries:
-        location = raw.get("location") or {}
-        weather = raw.get("weather") or {}
-        text = raw.get("text", "")
 
-        entry = {
-            "uuid": raw["uuid"],
-            "creation_date": raw.get("creationDate", ""),
-            "modified_date": raw.get("modifiedDate"),
-            "timezone": raw.get("timeZone"),
-            "text": text,
-            "snippet": make_snippet(text) if text else None,
-            "starred": 1 if raw.get("starred") else 0,
-            "latitude": location.get("latitude"),
-            "longitude": location.get("longitude"),
-            "place_name": location.get("placeName"),
-            "locality": location.get("localityName"),
-            "admin_area": location.get("administrativeArea"),
-            "country": location.get("country"),
-            "weather_description": weather.get("conditionsDescription"),
-            "weather_temp_c": weather.get("temperatureCelsius"),
-            "duration": raw.get("duration"),
-            "word_count": len(text.split()) if text else 0,
-            "tags": raw.get("tags", []),
-            "photos": [
-                {
-                    "identifier": p["identifier"],
-                    "md5": p.get("md5"),
-                    "file_type": p.get("type"),
-                    "width": p.get("width"),
-                    "height": p.get("height"),
-                }
-                for p in raw.get("photos", [])
-            ],
-        }
-        parsed.append(entry)
+def parse_all_journals(journal_paths: list[Path]) -> list[dict]:
+    all_entries = []
+    seen_uuids: set[str] = set()
+    for path in journal_paths:
+        for entry in parse_journal_json(path):
+            if entry["uuid"] not in seen_uuids:
+                seen_uuids.add(entry["uuid"])
+                all_entries.append(entry)
+    return all_entries
 
-    return parsed
+
+def _parse_entry(raw: dict) -> dict:
+    location = raw.get("location") or {}
+    weather = raw.get("weather") or {}
+    text = raw.get("text", "")
+
+    return {
+        "uuid": raw["uuid"],
+        "creation_date": raw.get("creationDate", ""),
+        "modified_date": raw.get("modifiedDate"),
+        "timezone": raw.get("timeZone"),
+        "text": text,
+        "snippet": make_snippet(text) if text else None,
+        "starred": 1 if raw.get("starred") else 0,
+        "latitude": location.get("latitude"),
+        "longitude": location.get("longitude"),
+        "place_name": location.get("placeName"),
+        "locality": location.get("localityName"),
+        "admin_area": location.get("administrativeArea"),
+        "country": location.get("country"),
+        "weather_description": weather.get("conditionsDescription"),
+        "weather_temp_c": weather.get("temperatureCelsius"),
+        "duration": raw.get("duration"),
+        "word_count": len(text.split()) if text else 0,
+        "tags": raw.get("tags", []),
+        "photos": [
+            {
+                "identifier": p["identifier"],
+                "md5": p.get("md5"),
+                "file_type": p.get("type"),
+                "width": p.get("width"),
+                "height": p.get("height"),
+            }
+            for p in raw.get("photos", [])
+        ],
+    }
 
 
 def strip_markdown(text: str) -> str:

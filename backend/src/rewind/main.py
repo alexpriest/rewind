@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from rewind.db import init_db
-from rewind.routers import entries, import_router, tags
+from rewind.routers import entries, import_router, photos, tags
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app.add_middleware(
 app.include_router(import_router.router)
 app.include_router(entries.router)
 app.include_router(tags.router)
+app.include_router(photos.router)
 
 
 @app.get("/api/health")

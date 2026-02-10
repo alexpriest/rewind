@@ -11,7 +11,7 @@ mkdir -p "$PROJECT_DIR/data/photos" "$PROJECT_DIR/data/thumbnails"
 # Start backend
 echo "Starting backend..."
 cd "$PROJECT_DIR/backend"
-python -m uvicorn rewind.main:app --reload --port 8000 &
+python3.11 -m uvicorn rewind.main:app --reload --port 8000 &
 BACKEND_PID=$!
 
 # Start frontend

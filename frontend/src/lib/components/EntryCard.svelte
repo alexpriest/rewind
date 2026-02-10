@@ -35,7 +35,7 @@
 	<header class="entry-header">
 		<time class="entry-date">{formatDate(entry.creation_date)}</time>
 		{#if entry.starred}
-			<span class="star" title="Starred">\u2605</span>
+			<span class="star" title="Starred">★</span>
 		{/if}
 	</header>
 

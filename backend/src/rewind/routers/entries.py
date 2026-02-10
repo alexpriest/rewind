@@ -25,9 +25,12 @@ def list_entries(
 
         if q:
             where_clauses.append(
-                "e.uuid IN (SELECT uuid FROM entries_fts WHERE entries_fts MATCH ?)"
+                """(e.uuid IN (SELECT uuid FROM entries_fts WHERE entries_fts MATCH ?)
+                   OR e.uuid IN (SELECT et.entry_uuid FROM entry_tags et
+                                 JOIN tags t ON t.id = et.tag_id
+                                 WHERE t.name LIKE ?))"""
             )
-            params.append(q)
+            params.extend([q, f"%{q}%"])
         if tag:
             where_clauses.append(
                 "e.uuid IN (SELECT entry_uuid FROM entry_tags JOIN tags ON tags.id = entry_tags.tag_id WHERE tags.name = ?)"

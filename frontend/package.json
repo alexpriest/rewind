@@ -30,6 +30,7 @@
 		"d3-force": "^3.0.0",
 		"d3-selection": "^3.0.0",
 		"d3-zoom": "^3.0.0",
-		"leaflet": "^1.9.4"
+		"leaflet": "^1.9.4",
+		"leaflet.markercluster": "^1.5.3"
 	}
 }

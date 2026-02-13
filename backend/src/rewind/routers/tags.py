@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 
 from rewind.db import get_db
-from rewind.models import TagResponse, TagUpdateRequest
+from rewind.importer.classifier import classify_tags
+from rewind.models import BulkConfirmRequest, TagResponse, TagUpdateRequest
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
 
@@ -68,5 +69,81 @@ def update_tag(tag_id: int, body: TagUpdateRequest) -> TagResponse:
             user_confirmed=bool(row["user_confirmed"]),
             entry_count=row["entry_count"],
         )
+    finally:
+        conn.close()
+
+
+@router.post("/classify", response_model=list[TagResponse])
+def classify_unclassified_tags() -> list[TagResponse]:
+    conn = get_db()
+    try:
+        unclassified = conn.execute(
+            "SELECT name FROM tags WHERE user_confirmed = 0"
+        ).fetchall()
+        unclassified_names = [r["name"] for r in unclassified]
+
+        if unclassified_names:
+            classifications = classify_tags(unclassified_names)
+            for tag_name, tag_type in classifications.items():
+                conn.execute(
+                    "UPDATE tags SET tag_type = ?, ai_suggested_type = ? WHERE name = ?",
+                    (tag_type, tag_type, tag_name),
+                )
+            conn.commit()
+
+        rows = conn.execute(
+            """SELECT t.*, COUNT(et.entry_uuid) as entry_count
+               FROM tags t
+               LEFT JOIN entry_tags et ON et.tag_id = t.id
+               GROUP BY t.id
+               ORDER BY entry_count DESC"""
+        ).fetchall()
+
+        return [
+            TagResponse(
+                id=r["id"],
+                name=r["name"],
+                tag_type=r["tag_type"],
+                ai_suggested_type=r["ai_suggested_type"],
+                user_confirmed=bool(r["user_confirmed"]),
+                entry_count=r["entry_count"],
+            )
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+
+@router.post("/bulk-confirm", response_model=list[TagResponse])
+def bulk_confirm_tags(body: BulkConfirmRequest) -> list[TagResponse]:
+    conn = get_db()
+    try:
+        if body.tag_ids:
+            placeholders = ",".join("?" * len(body.tag_ids))
+            conn.execute(
+                f"UPDATE tags SET user_confirmed = 1 WHERE id IN ({placeholders})",
+                body.tag_ids,
+            )
+            conn.commit()
+
+        rows = conn.execute(
+            """SELECT t.*, COUNT(et.entry_uuid) as entry_count
+               FROM tags t
+               LEFT JOIN entry_tags et ON et.tag_id = t.id
+               GROUP BY t.id
+               ORDER BY entry_count DESC"""
+        ).fetchall()
+
+        return [
+            TagResponse(
+                id=r["id"],
+                name=r["name"],
+                tag_type=r["tag_type"],
+                ai_suggested_type=r["ai_suggested_type"],
+                user_confirmed=bool(r["user_confirmed"]),
+                entry_count=r["entry_count"],
+            )
+            for r in rows
+        ]
     finally:
         conn.close()

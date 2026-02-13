@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { Entry } from '$lib/types';
+	import Lightbox from './Lightbox.svelte';
 
 	let { entry }: { entry: Entry } = $props();
+
+	let lightboxOpen = $state(false);
+	let lightboxStartIndex = $state(0);
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
@@ -29,13 +33,21 @@
 		if (e.weather_temp_c !== null) parts.push(`${Math.round(e.weather_temp_c)}\u00B0C`);
 		return parts.join(' \u00B7 ');
 	}
+
+	function openLightbox(index: number) {
+		lightboxStartIndex = index;
+		lightboxOpen = true;
+	}
+
+	const visiblePhotos = $derived(entry.photos.filter((p) => p.has_thumbnail).slice(0, 4));
+	const photoCount = $derived(entry.photos.filter((p) => p.has_thumbnail).length);
 </script>
 
 <article class="entry-card">
 	<header class="entry-header">
 		<time class="entry-date">{formatDate(entry.creation_date)}</time>
 		{#if entry.starred}
-			<span class="star" title="Starred">★</span>
+			<span class="star" title="Starred">&#9733;</span>
 		{/if}
 	</header>
 
@@ -43,20 +55,22 @@
 		<p class="entry-text">{displayText(entry)}</p>
 	{/if}
 
-	{#if entry.photos.length > 0}
-		<div class="entry-photos">
-			{#each entry.photos.slice(0, 4) as photo}
-				{#if photo.has_thumbnail}
+	{#if visiblePhotos.length > 0}
+		<div class="entry-photos" class:grid={visiblePhotos.length >= 2}>
+			{#each visiblePhotos as photo, i}
+				<button class="photo-button" onclick={() => openLightbox(i)}>
 					<img
 						src="/api/photos/{photo.id}/thumbnail"
 						alt=""
 						class="photo-thumb"
 						loading="lazy"
 					/>
-				{/if}
+				</button>
 			{/each}
-			{#if entry.photos.length > 4}
-				<span class="photo-more">+{entry.photos.length - 4}</span>
+			{#if photoCount > 4}
+				<button class="photo-more-overlay" onclick={() => openLightbox(3)}>
+					+{photoCount - 4}
+				</button>
 			{/if}
 		</div>
 	{/if}
@@ -81,6 +95,14 @@
 		</div>
 	{/if}
 </article>
+
+{#if lightboxOpen}
+	<Lightbox
+		photos={entry.photos.filter((p) => p.has_thumbnail)}
+		startIndex={lightboxStartIndex}
+		onclose={() => (lightboxOpen = false)}
+	/>
+{/if}
 
 <style>
 	.entry-card {
@@ -126,20 +148,59 @@
 		gap: 8px;
 		margin-bottom: 16px;
 		align-items: center;
+		position: relative;
+	}
+
+	.entry-photos.grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+		max-width: 256px;
+	}
+
+	.photo-button {
+		background: none;
+		border: none;
+		padding: 0;
+		line-height: 0;
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		transition: opacity 0.15s ease;
+	}
+
+	.photo-button:hover {
+		opacity: 0.85;
 	}
 
 	.photo-thumb {
-		width: 64px;
-		height: 64px;
+		width: 120px;
+		height: 120px;
 		object-fit: cover;
 		border-radius: var(--radius-sm);
 		border: 1px solid var(--color-border);
+		display: block;
 	}
 
-	.photo-more {
-		font-size: 13px;
-		color: var(--color-text-tertiary);
-		font-weight: 500;
+	.photo-more-overlay {
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		width: 120px;
+		height: 120px;
+		background: rgba(0, 0, 0, 0.45);
+		color: white;
+		font-size: 16px;
+		font-weight: 600;
+		border: none;
+		border-radius: var(--radius-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.15s ease;
+	}
+
+	.photo-more-overlay:hover {
+		background: rgba(0, 0, 0, 0.55);
 	}
 
 	.entry-footer {

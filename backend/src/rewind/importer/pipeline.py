@@ -8,6 +8,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from rewind.config import settings
+from rewind.importer.classifier import classify_tags
+from rewind.importer.graph import compute_graph
 from rewind.importer.parser import parse_all_journals
 from rewind.importer.thumbnails import process_photos
 from rewind.models import ImportStatus
@@ -55,12 +57,12 @@ class ImportPipeline:
             )
             entries = parse_all_journals(journal_paths)
 
-            self._update("importing", 35, f"Processing photos for {len(entries)} entries...")
+            self._update("importing", 20, f"Processing photos for {len(entries)} entries...")
             photo_file_count = process_photos(
                 tmp_dir, entries, settings.PHOTOS_DIR, settings.THUMBNAILS_DIR
             )
 
-            self._update("importing", 55, f"Importing {len(entries)} entries...")
+            self._update("importing", 35, f"Importing {len(entries)} entries...")
             conn = sqlite3.connect(str(self.db_path))
             conn.execute("PRAGMA journal_mode=wal")
             conn.execute("PRAGMA foreign_keys=ON")
@@ -71,14 +73,41 @@ class ImportPipeline:
                 self._clear_data(conn)
                 self._restore_confirmed_tags(conn, confirmed_tags)
 
-                self._update("importing", 65, "Inserting entries...")
+                self._update("importing", 45, "Inserting entries...")
                 self._insert_entries(conn, entries)
 
-                self._update("importing", 75, "Inserting tags...")
+                self._update("importing", 55, "Inserting tags...")
                 tag_count = self._insert_tags_and_links(conn, entries)
 
-                self._update("importing", 85, "Inserting photos...")
+                self._update("importing", 60, "Inserting photos...")
                 photo_count = self._insert_photos(conn, entries)
+
+                # Classify unclassified tags via Claude
+                self._update("classifying", 65, "Classifying tags...")
+                unclassified = conn.execute(
+                    "SELECT name FROM tags WHERE user_confirmed = 0 AND ai_suggested_type IS NULL"
+                ).fetchall()
+                unclassified_names = [r["name"] for r in unclassified]
+
+                if unclassified_names and settings.ANTHROPIC_API_KEY:
+                    classifications = classify_tags(unclassified_names)
+                    for tag_name, tag_type in classifications.items():
+                        conn.execute(
+                            "UPDATE tags SET tag_type = ?, ai_suggested_type = ? WHERE name = ?",
+                            (tag_type, tag_type, tag_name),
+                        )
+                    conn.commit()
+                    self._update("classifying", 80, f"Classified {len(classifications)} tags")
+                else:
+                    if not settings.ANTHROPIC_API_KEY:
+                        self._update("classifying", 80, "Skipping classification (no API key)")
+                    else:
+                        self._update("classifying", 80, "No unclassified tags")
+
+                # Compute graph
+                self._update("computing", 80, "Computing graph...")
+                node_count, edge_count = compute_graph(self.db_path)
+                self._update("computing", 95, f"Graph: {node_count} nodes, {edge_count} edges")
 
                 duration = time.time() - start
                 conn.execute(
@@ -98,7 +127,7 @@ class ImportPipeline:
                 self._update(
                     "done",
                     100,
-                    f"Imported {len(entries)} entries, {tag_count} tags, {photo_count} photos ({photo_file_count} with files) in {duration:.1f}s",
+                    f"Imported {len(entries)} entries, {tag_count} tags, {photo_count} photos ({photo_file_count} with files), graph: {node_count} nodes, {edge_count} edges in {duration:.1f}s",
                     entry_count=len(entries),
                     tag_count=tag_count,
                     photo_count=photo_count,

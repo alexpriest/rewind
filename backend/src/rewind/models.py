@@ -63,3 +63,68 @@ class TagUpdateRequest(BaseModel):
 
 class BulkConfirmRequest(BaseModel):
     tag_ids: list[int]
+
+
+class TimelineGroup(BaseModel):
+    month: str
+    label: str
+    entries: list[EntryResponse]
+    count: int
+
+
+class TimelineResponse(BaseModel):
+    groups: list[TimelineGroup]
+    total: int
+
+
+class PlaceCount(BaseModel):
+    name: str
+    count: int
+
+
+class MapPointResponse(BaseModel):
+    uuid: str
+    latitude: float
+    longitude: float
+    creation_date: str
+    snippet: str | None
+    place_name: str | None
+    photo_id: int | None
+
+
+class ReportGenerateRequest(BaseModel):
+    person_tag_id: int
+    date_from: str | None = None
+    date_to: str | None = None
+
+
+class ReportStatusResponse(BaseModel):
+    id: str
+    status: str  # 'generating' | 'done' | 'error'
+    progress: float
+    message: str
+    person_name: str | None = None
+
+
+class GraphNodeResponse(BaseModel):
+    node_type: str
+    node_id: str
+    label: str
+    entry_count: int
+    first_date: str | None
+    last_date: str | None
+
+
+class GraphEdgeResponse(BaseModel):
+    source_type: str
+    source_id: str
+    target_type: str
+    target_id: str
+    weight: int
+    first_date: str | None
+    last_date: str | None
+
+
+class GraphResponse(BaseModel):
+    nodes: list[GraphNodeResponse]
+    edges: list[GraphEdgeResponse]

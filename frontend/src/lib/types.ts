@@ -57,20 +57,61 @@ export interface ImportStatus {
 	photo_count: number | null;
 }
 
+export interface TimelineGroup {
+	month: string;
+	label: string;
+	entries: Entry[];
+	count: number;
+}
+
+export interface TimelineResponse {
+	groups: TimelineGroup[];
+	total: number;
+}
+
+export interface PlaceCount {
+	name: string;
+	count: number;
+}
+
 export interface GraphNode {
-	id: string;
-	type: 'person' | 'topic' | 'place';
+	node_type: 'person' | 'topic' | 'place';
+	node_id: string;
 	label: string;
 	entry_count: number;
+	first_date: string | null;
+	last_date: string | null;
 }
 
 export interface GraphEdge {
-	source: string;
-	target: string;
+	source_type: string;
+	source_id: string;
+	target_type: string;
+	target_id: string;
 	weight: number;
+	first_date: string | null;
+	last_date: string | null;
 }
 
 export interface GraphData {
 	nodes: GraphNode[];
 	edges: GraphEdge[];
+}
+
+export interface MapPoint {
+	uuid: string;
+	latitude: number;
+	longitude: number;
+	creation_date: string;
+	snippet: string | null;
+	place_name: string | null;
+	photo_id: number | null;
+}
+
+export interface ReportStatus {
+	id: string;
+	status: 'generating' | 'done' | 'error';
+	progress: number;
+	message: string;
+	person_name: string | null;
 }

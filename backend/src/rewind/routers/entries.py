@@ -1,9 +1,18 @@
 from collections import defaultdict
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
 from rewind.db import get_db
-from rewind.models import EntryListResponse, EntryResponse, PhotoResponse
+from rewind.models import (
+    EntryListResponse,
+    EntryResponse,
+    MapPointResponse,
+    PhotoResponse,
+    PlaceCount,
+    TimelineGroup,
+    TimelineResponse,
+)
 
 router = APIRouter(prefix="/api/entries", tags=["entries"])
 
@@ -122,6 +131,216 @@ def list_entries(
         return EntryListResponse(
             entries=entries, total=total, page=page, page_size=page_size
         )
+    finally:
+        conn.close()
+
+
+@router.get("/timeline", response_model=TimelineResponse)
+def timeline(
+    q: str | None = None,
+    tag: str | None = None,
+    place: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = Query(500, ge=1, le=5000),
+) -> TimelineResponse:
+    conn = get_db()
+    try:
+        where_clauses: list[str] = []
+        params: list[str | int | float] = []
+
+        if q:
+            where_clauses.append(
+                """(e.uuid IN (SELECT uuid FROM entries_fts WHERE entries_fts MATCH ?)
+                   OR e.uuid IN (SELECT et.entry_uuid FROM entry_tags et
+                                 JOIN tags t ON t.id = et.tag_id
+                                 WHERE t.name LIKE ?))"""
+            )
+            params.extend([q, f"%{q}%"])
+        if tag:
+            where_clauses.append(
+                "e.uuid IN (SELECT entry_uuid FROM entry_tags JOIN tags ON tags.id = entry_tags.tag_id WHERE tags.name = ?)"
+            )
+            params.append(tag)
+        if place:
+            where_clauses.append(
+                "(e.place_name LIKE ? OR e.locality LIKE ? OR e.country LIKE ?)"
+            )
+            params.extend([f"%{place}%", f"%{place}%", f"%{place}%"])
+        if date_from:
+            where_clauses.append("e.creation_date >= ?")
+            params.append(date_from)
+        if date_to:
+            where_clauses.append("e.creation_date <= ?")
+            params.append(date_to)
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        count_row = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM entries e WHERE {where_sql}", params
+        ).fetchone()
+        total = count_row["cnt"]
+
+        entry_rows = conn.execute(
+            f"""SELECT e.* FROM entries e
+                WHERE {where_sql}
+                ORDER BY e.creation_date DESC
+                LIMIT ?""",
+            [*params, limit],
+        ).fetchall()
+
+        if not entry_rows:
+            return TimelineResponse(groups=[], total=total)
+
+        uuids = [r["uuid"] for r in entry_rows]
+        placeholders = ",".join("?" * len(uuids))
+
+        tag_rows = conn.execute(
+            f"""SELECT et.entry_uuid, t.name
+                FROM entry_tags et JOIN tags t ON t.id = et.tag_id
+                WHERE et.entry_uuid IN ({placeholders})""",
+            uuids,
+        ).fetchall()
+        tags_by_uuid: dict[str, list[str]] = defaultdict(list)
+        for r in tag_rows:
+            tags_by_uuid[r["entry_uuid"]].append(r["name"])
+
+        photo_rows = conn.execute(
+            f"""SELECT * FROM photos WHERE entry_uuid IN ({placeholders})""",
+            uuids,
+        ).fetchall()
+        photos_by_uuid: dict[str, list[PhotoResponse]] = defaultdict(list)
+        for r in photo_rows:
+            photos_by_uuid[r["entry_uuid"]].append(
+                PhotoResponse(
+                    id=r["id"],
+                    identifier=r["identifier"],
+                    file_type=r["file_type"],
+                    has_thumbnail=bool(r["has_thumbnail"]),
+                )
+            )
+
+        groups_dict: dict[str, list[EntryResponse]] = defaultdict(list)
+        for r in entry_rows:
+            month = r["creation_date"][:7]
+            groups_dict[month].append(
+                EntryResponse(
+                    uuid=r["uuid"],
+                    creation_date=r["creation_date"],
+                    text=r["text"],
+                    snippet=r["snippet"],
+                    starred=bool(r["starred"]),
+                    latitude=r["latitude"],
+                    longitude=r["longitude"],
+                    place_name=r["place_name"],
+                    locality=r["locality"],
+                    admin_area=r["admin_area"],
+                    country=r["country"],
+                    weather_description=r["weather_description"],
+                    weather_temp_c=r["weather_temp_c"],
+                    word_count=r["word_count"],
+                    tags=tags_by_uuid.get(r["uuid"], []),
+                    photos=photos_by_uuid.get(r["uuid"], []),
+                )
+            )
+
+        sorted_months = sorted(groups_dict.keys(), reverse=True)
+        groups = [
+            TimelineGroup(
+                month=month,
+                label=datetime.strptime(month, "%Y-%m").strftime("%B %Y"),
+                entries=groups_dict[month],
+                count=len(groups_dict[month]),
+            )
+            for month in sorted_months
+        ]
+
+        return TimelineResponse(groups=groups, total=total)
+    finally:
+        conn.close()
+
+
+@router.get("/places", response_model=list[PlaceCount])
+def places() -> list[PlaceCount]:
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT place_name, COUNT(*) as cnt
+               FROM entries
+               WHERE place_name IS NOT NULL AND place_name != ''
+               GROUP BY place_name
+               ORDER BY cnt DESC"""
+        ).fetchall()
+        return [PlaceCount(name=r["place_name"], count=r["cnt"]) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/map-points", response_model=list[MapPointResponse])
+def map_points(
+    q: str | None = None,
+    tag: str | None = None,
+    place: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[MapPointResponse]:
+    conn = get_db()
+    try:
+        where_clauses: list[str] = [
+            "e.latitude IS NOT NULL",
+            "e.longitude IS NOT NULL",
+        ]
+        params: list[str | int | float] = []
+
+        if q:
+            where_clauses.append(
+                """(e.uuid IN (SELECT uuid FROM entries_fts WHERE entries_fts MATCH ?)
+                   OR e.uuid IN (SELECT et.entry_uuid FROM entry_tags et
+                                 JOIN tags t ON t.id = et.tag_id
+                                 WHERE t.name LIKE ?))"""
+            )
+            params.extend([q, f"%{q}%"])
+        if tag:
+            where_clauses.append(
+                "e.uuid IN (SELECT entry_uuid FROM entry_tags JOIN tags ON tags.id = entry_tags.tag_id WHERE tags.name = ?)"
+            )
+            params.append(tag)
+        if place:
+            where_clauses.append(
+                "(e.place_name LIKE ? OR e.locality LIKE ? OR e.country LIKE ?)"
+            )
+            params.extend([f"%{place}%", f"%{place}%", f"%{place}%"])
+        if date_from:
+            where_clauses.append("e.creation_date >= ?")
+            params.append(date_from)
+        if date_to:
+            where_clauses.append("e.creation_date <= ?")
+            params.append(date_to)
+
+        where_sql = " AND ".join(where_clauses)
+
+        rows = conn.execute(
+            f"""SELECT e.uuid, e.latitude, e.longitude, e.creation_date,
+                       e.snippet, e.place_name,
+                       (SELECT p.id FROM photos p WHERE p.entry_uuid = e.uuid LIMIT 1) AS photo_id
+                FROM entries e
+                WHERE {where_sql}
+                ORDER BY e.creation_date DESC""",
+            params,
+        ).fetchall()
+
+        return [
+            MapPointResponse(
+                uuid=r["uuid"],
+                latitude=r["latitude"],
+                longitude=r["longitude"],
+                creation_date=r["creation_date"],
+                snippet=r["snippet"],
+                place_name=r["place_name"],
+                photo_id=r["photo_id"],
+            )
+            for r in rows
+        ]
     finally:
         conn.close()
 

@@ -22,6 +22,7 @@
 	<nav class="sidebar">
 		<div class="logo">
 			<span class="logo-text">Rewind</span>
+			<span class="logo-subtitle">An App for Miranda</span>
 		</div>
 		<ul class="nav-list">
 			{#each navItems as item}
@@ -70,10 +71,19 @@
 	}
 
 	.logo-text {
+		display: block;
 		font-size: 22px;
 		font-weight: 700;
 		color: var(--color-accent);
 		letter-spacing: -0.5px;
+	}
+
+	.logo-subtitle {
+		display: block;
+		font-size: 11px;
+		color: var(--color-text-tertiary);
+		font-weight: 400;
+		margin-top: 2px;
 	}
 
 	.nav-list {

@@ -1,13 +1,13 @@
 :root {
-	--color-bg: #faf8f5;
+	--color-bg: #f1f4f6;
 	--color-surface: #ffffff;
-	--color-text: #2d2a26;
-	--color-text-secondary: #6b6560;
-	--color-text-tertiary: #9b9590;
-	--color-border: #e8e4df;
-	--color-accent: #c06a45;
-	--color-accent-light: #f0ddd3;
-	--color-accent-dark: #9b4f30;
+	--color-text: #333b40;
+	--color-text-secondary: #5f6b76;
+	--color-text-tertiary: #8e99a4;
+	--color-border: #dde2e7;
+	--color-accent: #1e75ae;
+	--color-accent-light: #dceaf5;
+	--color-accent-dark: #165d8c;
 	--color-person: #7c6bc4;
 	--color-place: #4a9e7a;
 	--color-topic: #c49a3c;

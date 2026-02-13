@@ -322,8 +322,8 @@ def _build_report_html(
 
     body {{
         font-family: 'Inter', -apple-system, sans-serif;
-        background: #faf8f5;
-        color: #2d2a26;
+        background: #f1f4f6;
+        color: #333b40;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
     }}
@@ -338,20 +338,20 @@ def _build_report_html(
         text-align: center;
         margin-bottom: 48px;
         padding-bottom: 32px;
-        border-bottom: 1px solid #e8e4df;
+        border-bottom: 1px solid #dde2e7;
     }}
 
     .header h1 {{
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 42px;
         font-weight: 700;
-        color: #c06a45;
+        color: #1e75ae;
         margin-bottom: 8px;
     }}
 
     .header .date-range {{
         font-size: 15px;
-        color: #9b9590;
+        color: #8e99a4;
         font-weight: 400;
     }}
 
@@ -367,19 +367,19 @@ def _build_report_html(
         padding: 20px 12px;
         background: white;
         border-radius: 10px;
-        border: 1px solid #e8e4df;
+        border: 1px solid #dde2e7;
     }}
 
     .stat-number {{
         font-size: 28px;
         font-weight: 700;
-        color: #c06a45;
+        color: #1e75ae;
         display: block;
     }}
 
     .stat-label {{
         font-size: 12px;
-        color: #9b9590;
+        color: #8e99a4;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-top: 4px;
@@ -394,11 +394,11 @@ def _build_report_html(
         font-size: 24px;
         font-weight: 600;
         margin-bottom: 16px;
-        color: #2d2a26;
+        color: #333b40;
     }}
 
     .section p {{
-        color: #6b6560;
+        color: #5f6b76;
         font-size: 15px;
         line-height: 1.7;
     }}
@@ -414,25 +414,25 @@ def _build_report_html(
         padding: 20px;
         background: white;
         border-radius: 10px;
-        border: 1px solid #e8e4df;
+        border: 1px solid #dde2e7;
     }}
 
     .theme-card h3 {{
         font-size: 15px;
         font-weight: 600;
         margin-bottom: 8px;
-        color: #c06a45;
+        color: #1e75ae;
     }}
 
     .theme-card p {{
         font-size: 14px;
-        color: #6b6560;
+        color: #5f6b76;
         line-height: 1.5;
     }}
 
     .highlight {{
         padding: 16px 0;
-        border-bottom: 1px solid #e8e4df;
+        border-bottom: 1px solid #dde2e7;
     }}
 
     .highlight:last-child {{
@@ -442,7 +442,7 @@ def _build_report_html(
     .highlight-date {{
         font-size: 12px;
         font-weight: 600;
-        color: #c06a45;
+        color: #1e75ae;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }}
@@ -450,7 +450,7 @@ def _build_report_html(
     .highlight p {{
         margin-top: 4px;
         font-size: 15px;
-        color: #6b6560;
+        color: #5f6b76;
     }}
 
     .photo-gallery {{
@@ -498,14 +498,14 @@ def _build_report_html(
         text-align: center;
         padding: 40px 20px;
         margin-top: 48px;
-        border-top: 1px solid #e8e4df;
+        border-top: 1px solid #dde2e7;
     }}
 
     .closing p {{
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 18px;
         font-style: italic;
-        color: #6b6560;
+        color: #5f6b76;
         line-height: 1.6;
     }}
 
@@ -513,12 +513,12 @@ def _build_report_html(
         text-align: center;
         margin-top: 48px;
         padding-top: 24px;
-        border-top: 1px solid #e8e4df;
+        border-top: 1px solid #dde2e7;
     }}
 
     .footer p {{
         font-size: 12px;
-        color: #9b9590;
+        color: #8e99a4;
     }}
 
     @media (max-width: 600px) {{

@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class Settings:
-    DATA_DIR: Path = Path.home() / "Code" / "projects" / "rewind" / "data"
+    DATA_DIR: Path = Path(os.environ.get("DATA_DIR", Path.home() / "Code" / "projects" / "rewind" / "data"))
     DB_PATH: Path = DATA_DIR / "rewind.db"
     PHOTOS_DIR: Path = DATA_DIR / "photos"
     THUMBNAILS_DIR: Path = DATA_DIR / "thumbnails"

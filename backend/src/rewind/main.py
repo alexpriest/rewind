@@ -1,7 +1,10 @@
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from rewind.db import init_db
 from rewind.routers import entries, graph, import_router, photos, reports, tags
@@ -34,3 +37,9 @@ app.include_router(reports.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# In production, serve the built SvelteKit frontend
+_frontend_dir = Path(os.environ.get("FRONTEND_DIR", ""))
+if _frontend_dir.is_dir():
+    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")

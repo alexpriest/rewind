@@ -1,6 +1,14 @@
 # Rewind
 
-A Day One journal visualizer for exploring years of journal entries through interactive graphs, smart search, maps, and personalized reports. Built as a surprise gift.
+Turns years of Day One journal entries into a graph you can explore, search, and map.
+
+## Status
+
+Shipped — built as a gift, run locally against a Day One export.
+
+## License
+
+Not licensed for reuse.
 
 ## Features
 
